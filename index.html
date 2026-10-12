@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0B0C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Subs">
+  <meta name="format-detection" content="telephone=no">
+  <title>5-a-side Subs</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="fatal" class="fatal" hidden></div>
+
+  <!-- SCREEN 1: SQUAD -->
+  <section id="screen-squad" class="screen" hidden>
+    <header class="topbar">
+      <nav class="tabs">
+        <button class="tab is-on" data-act="go" data-to="squad">Squad</button>
+        <button class="tab" data-act="go" data-to="setup">Match</button>
+      </nav>
+      <span class="test-badge" data-test hidden></span>
+    </header>
+
+    <h1 class="title">Squad <span id="squad-count" class="title-count"></span></h1>
+
+    <form id="add-form" class="add-row" autocomplete="off">
+      <input id="add-name" class="field" type="text" placeholder="Player name" maxlength="30"
+             autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+
+    <button id="bulk-toggle" class="btn btn-ghost btn-block" data-act="bulk-toggle">Paste a list of names</button>
+    <div id="bulk-box" class="bulk" hidden>
+      <textarea id="bulk-text" class="field" rows="6" autocapitalize="words" autocorrect="off" spellcheck="false"
+                placeholder="One name per line, or separated by commas"></textarea>
+      <button class="btn btn-primary btn-block" data-act="bulk-add">Add all</button>
+    </div>
+
+    <p id="squad-msg" class="msg" role="status"></p>
+    <ul id="squad-list" class="list"></ul>
+    <p id="squad-empty" class="empty">No players yet.</p>
+    <p id="insecure-note" class="footnote" hidden>Offline mode needs HTTPS. See README.md.</p>
+  </section>
+
+  <!-- SCREEN 2: MATCH SETUP -->
+  <section id="screen-setup" class="screen" hidden>
+    <header class="topbar">
+      <nav class="tabs">
+        <button class="tab" data-act="go" data-to="squad">Squad</button>
+        <button class="tab is-on" data-act="go" data-to="setup">Match</button>
+      </nav>
+      <span class="test-badge" data-test hidden></span>
+    </header>
+
+    <div class="step">
+      <div class="step-head">
+        <h2><span class="step-n">1</span>Who's here?</h2>
+        <span id="att-count" class="step-meta"></span>
+        <button id="att-clear" class="link-btn" data-act="clear-setup">Clear</button>
+      </div>
+      <div id="grid-attend" class="grid"></div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><h2><span class="step-n">2</span>Goalkeeper</h2></div>
+      <div id="grid-keeper" class="grid"></div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <h2><span class="step-n">3</span>Starting four</h2>
+        <span class="step-meta">tap in order</span>
+      </div>
+      <div id="grid-start" class="grid"></div>
+      <div id="bench-wrap" class="bench-wrap">
+        <div class="label">Bench</div>
+        <div id="bench-list" class="bench-chips"></div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <p id="setup-msg" class="msg msg-center"></p>
+      <button id="btn-generate" class="btn btn-primary btn-xl btn-block" data-act="generate">Generate rotation</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 3: REVIEW ROTATION -->
+  <section id="screen-review" class="screen" hidden>
+    <header class="topbar">
+      <button class="btn-back" data-act="back">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back
+      </button>
+      <span id="review-meta" class="topbar-meta"></span>
+      <span class="test-badge" data-test hidden></span>
+    </header>
+
+    <h1 class="title">Rotation</h1>
+
+    <div class="label">Subs</div>
+    <ol id="review-stops" class="stops"></ol>
+
+    <div class="label label-row">Players <span id="swap-hint" class="hint"></span></div>
+    <ul id="review-players" class="players"></ul>
+
+    <div class="action-bar">
+      <button class="btn btn-go btn-xl btn-block" data-act="start">START MATCH</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 4: LIVE MATCH -->
+  <section id="screen-live" class="live" hidden>
+    <div class="live-top">
+      <div class="live-top-left"><span id="live-test" class="test-badge" hidden></span></div>
+      <div class="live-controls">
+        <button id="btn-pause" class="icon-btn" data-act="pause" aria-label="Pause"></button>
+        <button id="btn-sound" class="icon-btn" data-act="sound" aria-label="Sound"></button>
+        <button class="icon-btn" data-act="menu" aria-label="Menu">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><circle cx="5" cy="12" r="2.2" fill="currentColor"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><circle cx="19" cy="12" r="2.2" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="live-main">
+      <div id="clock" class="clock">00:00</div>
+
+      <!-- normal -->
+      <div class="mode mode-normal">
+        <div id="next-sub" class="next-sub"></div>
+        <div class="live-label">On pitch</div>
+        <ul id="pitch" class="pitch"></ul>
+        <div class="live-label">Bench</div>
+        <div id="bench" class="bench"></div>
+      </div>
+
+      <!-- warning -->
+      <div class="mode mode-warn">
+        <div class="warn-head">SUB IN <span id="warn-count">0:30</span></div>
+        <div id="warn-swap" class="swap"></div>
+      </div>
+
+      <!-- sub -->
+      <div class="mode mode-sub">
+        <div class="sub-head">SUB</div>
+        <div id="sub-swap" class="swap"></div>
+      </div>
+
+      <!-- full time -->
+      <div class="mode mode-full">
+        <div class="full-head">FULL TIME</div>
+      </div>
+    </div>
+
+    <div class="live-bottom">
+      <button class="mode mode-sub btn btn-done" data-act="done">DONE</button>
+      <button class="mode mode-full btn btn-finish" data-act="finish">Finish</button>
+      <p id="wake-notice" class="wake-notice" hidden>Set Auto-Lock to Never during the match</p>
+    </div>
+
+    <div id="pause-overlay" class="overlay" hidden>
+      <div class="overlay-title">PAUSED</div>
+      <div id="pause-clock" class="overlay-clock">00:00</div>
+      <button class="btn btn-resume" data-act="resume">Resume</button>
+    </div>
+
+    <div id="sheet" class="sheet-wrap" hidden>
+      <div class="sheet">
+        <div id="sheet-menu">
+          <button class="btn btn-danger btn-block" data-act="end-ask">End match early</button>
+          <button class="btn btn-ghost btn-block" data-act="sheet-close">Cancel</button>
+        </div>
+        <div id="sheet-confirm" hidden>
+          <p class="sheet-title">End the match now?</p>
+          <p class="sheet-text">The timer stops and you go back to setup. This can't be undone.</p>
+          <button class="btn btn-danger btn-block" data-act="end-confirm">Yes, end match</button>
+          <button class="btn btn-ghost btn-block" data-act="sheet-close">Keep playing</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="templates.js"></script>
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

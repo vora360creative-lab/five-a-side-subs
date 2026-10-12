@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Local HTTPS certificates for serve.py --https (never publish private keys)
+*.pem
+
+# Local editor/agent tooling
+.claude/
