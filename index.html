@@ -17,6 +17,7 @@
 </head>
 <body>
   <div id="fatal" class="fatal" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <!-- SCREEN 1: SQUAD -->
   <section id="screen-squad" class="screen" hidden>
@@ -64,7 +65,12 @@
 
   <!-- SCREEN 2: MATCH SETUP -->
   <section id="screen-setup" class="screen" hidden>
-    <div class="brand">FC Deadline Day</div>
+    <div class="brand-row">
+      <div class="brand">FC Deadline Day</div>
+      <button class="icon-btn share-btn" data-act="share" aria-label="Share app">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M8.5 10H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1.5"/></svg>
+      </button>
+    </div>
     <header class="topbar">
       <nav class="tabs">
         <button class="tab" data-act="go" data-to="squad">Squad</button>

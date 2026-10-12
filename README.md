@@ -34,6 +34,10 @@ at the bottom restores the squad from `squad.js` after a confirmation.
 
 The rest become the bench in the order shown. Then tap **Generate rotation**.
 
+The share button next to the title sends the app's link (with "Open in Safari, then Share →
+Add to Home Screen") through the iPhone share sheet. Where sharing isn't available, it copies
+the link and shows "Link copied".
+
 **Rotation.** Shows each stoppage with who goes OFF and ON, and each player's stints and
 minutes (the keeper plays 38:00). Tap two players to swap their whole roles, including
 the keeper. **Back** returns to setup for late changes. Then:

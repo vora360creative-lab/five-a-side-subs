@@ -6,7 +6,7 @@
  *   re-downloaded in the background and swapped in together (only if every file
  *   arrived), so edits show up on the NEXT launch without mixing old and new files.
  */
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE = `subs5-${VERSION}`;
 const ASSETS = [
   "./",

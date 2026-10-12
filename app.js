@@ -906,6 +906,58 @@
     }
   }
 
+  /* ---------------- Share ---------------- */
+
+  const SHARE = {
+    title: "FC Deadline Day",
+    text: "Our five-a-side sub manager. Open in Safari, then Share → Add to Home Screen.",
+    url: "https://vora360creative-lab.github.io/five-a-side-subs/",
+  };
+
+  /** Native share sheet; without the Web Share API, copy the link instead. */
+  async function shareApp() {
+    if (navigator.share) {
+      try {
+        await navigator.share(SHARE);
+      } catch (e) {
+        if (!e || e.name !== "AbortError") copyLink(); // AbortError = share sheet closed
+      }
+      return;
+    }
+    copyLink();
+  }
+
+  async function copyLink() {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(SHARE.url);
+      ok = true;
+    } catch (e) {
+      // Older browsers: copy via a hidden text box.
+      const box = document.createElement("textarea");
+      box.value = SHARE.url;
+      box.setAttribute("readonly", "");
+      box.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(box);
+      box.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch (e2) { /* not supported */ }
+      box.remove();
+    }
+    toast(ok ? "Link copied" : SHARE.url); // if copying is blocked, show the link to copy by hand
+  }
+
+  let toastTimer = 0;
+
+  function toast(text) {
+    const box = $("#toast");
+    box.textContent = text;
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.hidden = true; }, text.length > 20 ? 5000 : 1800);
+  }
+
   /* ================================================================ */
   /* Events                                                            */
   /* ================================================================ */
@@ -943,6 +995,7 @@
       case "starter": return pickStarter(id);
       case "clear-setup": return clearSetup();
       case "generate": return generate();
+      case "share": return shareApp();
       // Review
       case "pick": return pick(id);
       case "back":
