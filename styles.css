@@ -85,8 +85,8 @@ h1, h2 { margin: 0; }
   color: var(--muted);
 }
 .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.hint { text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; text-align: right; }
-.hint.is-active { color: var(--fg); }
+.hint { text-transform: none; letter-spacing: 0; font-size: 16px; font-weight: 600; text-align: right; color: var(--amber); }
+.hint.is-active { font-weight: 800; }
 
 .msg { min-height: 1.35em; margin: 8px 0; font-size: 15px; color: var(--muted); }
 .msg.is-error { color: var(--off); }
@@ -136,7 +136,7 @@ textarea.field { resize: vertical; line-height: 1.4; }
 .btn.is-disabled { background: var(--surface-2); color: var(--faint); }
 .btn-test {
   margin-top: 12px;
-  background: transparent; border: 1.5px solid var(--line); color: var(--muted);
+  background: transparent; border: 1.5px solid var(--amber); color: var(--amber);
   font-size: 16px; font-weight: 600;
 }
 .btn-quiet { background: transparent; color: var(--muted); font-size: 16px; font-weight: 600; }
