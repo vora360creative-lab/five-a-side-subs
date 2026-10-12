@@ -79,6 +79,13 @@ then close it and open it again. The service worker downloads every file in the
 background and swaps them in together on the next launch. If you add a new file,
 add it to `ASSETS` in `sw.js`.
 
+## Red SUB screen
+
+The red SUB screen closes by itself after 30 seconds of match time and counts as DONE
+(the lineup updates exactly as if DONE was tapped). The DONE button shows the countdown,
+e.g. `DONE · 0:24`, and can be tapped any time before then. In test runs (any speed above
+x1) it stays up for 5 real seconds instead. Pausing the match pauses this countdown.
+
 ## Sound
 
 Sound is **always off** when the app opens, after a reload, and at the start of every

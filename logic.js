@@ -11,6 +11,8 @@
 
   const MATCH_MS = 38 * 60 * 1000;
   const WARN_MS = 30 * 1000;
+  const SUB_SCREEN_MS = 30 * 1000;      // red SUB screen auto-closes (as DONE) after 30 s of match time
+  const TEST_SUB_SCREEN_REAL_MS = 5000; // ...or after 5 real seconds in test mode (speed above x1)
   const ON_PITCH = 4;
   const STOPPAGES = 4;
   const TOTAL_OUTFIELD_MIN = (ON_PITCH * MATCH_MS) / 60000; // 152
@@ -204,29 +206,65 @@
   }
 
   /**
+   * How long the red SUB screen stays up before it counts as DONE, in match ms.
+   * Test mode keeps it up for 5 real seconds; measuring that in match time
+   * (5 s x speed) means pausing freezes this countdown too.
+   */
+  function subScreenMs(m) {
+    const speed = m.speed || 1;
+    return speed > 1 ? TEST_SUB_SCREEN_REAL_MS * speed : SUB_SCREEN_MS;
+  }
+
+  /**
+   * Stoppages confirmed by match time t, including any red SUB screen that has
+   * been up for its full window (auto-DONE). Pure: derived only from the stored
+   * state, so a reload mid-sub lands in the right place.
+   *   confirmedAt: match time of the most recent confirmation (DONE or auto).
+   * A red screen starts at its planned time, or when the previous stoppage was
+   * confirmed if that was later.
+   */
+  function settle(m, t) {
+    const stops = m.plan.stoppages;
+    const win = subScreenMs(m);
+    let idx = Math.min(m.confirmed || 0, stops.length);
+    let confirmedAt = m.confirmedAt || 0;
+    while (idx < stops.length) {
+      const shownAt = Math.max(stops[idx].at, confirmedAt);
+      if (t < shownAt + win) break;
+      confirmedAt = shownAt + win;
+      idx++;
+    }
+    return { idx, confirmedAt };
+  }
+
+  /**
    * What the live screen should show.
-   *   mode: normal | warn | sub | full
-   *   idx:  index of the next unconfirmed stoppage (= stoppages confirmed so far)
-   * A stoppage stays in "sub" until confirmed; the next one still fires at its
-   * planned match time, so a late DONE never shifts the schedule.
+   *   mode:    normal | warn | sub | full
+   *   idx:     index of the next unconfirmed stoppage (= stoppages confirmed so far)
+   *   subLeft: in "sub", match ms until the red screen auto-closes as DONE
+   * Stoppages always fire at their planned match time, so a late DONE never
+   * shifts the schedule.
    */
   function liveStatus(m, now) {
     const t = matchTime(m, now);
     const stops = m.plan.stoppages;
-    const idx = Math.min(m.confirmed || 0, stops.length);
+    const { idx, confirmedAt } = settle(m, t);
     const next = stops[idx] || null;
     let mode = "normal";
+    let subLeft = 0;
     if (t >= MATCH_MS) mode = "full";
-    else if (next && t >= next.at) mode = "sub";
-    else if (next && t >= next.at - WARN_MS) mode = "warn";
-    return { mode, t, idx, next };
+    else if (next && t >= next.at) {
+      mode = "sub";
+      subLeft = Math.max(next.at, confirmedAt) + subScreenMs(m) - t;
+    } else if (next && t >= next.at - WARN_MS) mode = "warn";
+    return { mode, t, idx, next, confirmedAt, subLeft };
   }
 
   return {
-    MATCH_MS, WARN_MS, ON_PITCH, SIZES,
+    MATCH_MS, WARN_MS, SUB_SCREEN_MS, ON_PITCH, SIZES,
     rolesFor, parseTime, fmtClock, fmtCountdown,
     stoppagesOf, stintsOf,
     validateTemplate, validateTemplates, checkTemplates,
-    buildPlan, matchTime, liveStatus,
+    buildPlan, matchTime, subScreenMs, liveStatus,
   };
 });

@@ -543,7 +543,8 @@
       paused: false,
       pausedAt: null,
       pausedTotal: 0,
-      confirmed: 0,                // stoppages confirmed with DONE
+      confirmed: 0,                // stoppages confirmed (DONE tapped, or red screen timed out)
+      confirmedAt: 0,              // match ms of the latest confirmation
       alerted: { warn: -1, sub: -1 },
       over: false,
     };
@@ -574,6 +575,7 @@
     pause: $("#btn-pause"),
     sound: $("#btn-sound"),
     wake: $("#wake-notice"),
+    done: $(".btn-done"),
   };
   let lastLiveKey = "";
   let ticker = 0;
@@ -611,6 +613,13 @@
     if (!match || current !== "live") return;
     const st = L.liveStatus(match, Date.now());
 
+    // A red SUB screen that has been up for its full window counts as DONE.
+    if (st.idx > (match.confirmed || 0)) {
+      match.confirmed = st.idx;
+      match.confirmedAt = st.confirmedAt;
+      saveMatch();
+    }
+
     const key = `${st.mode}|${st.idx}`;
     if (key !== lastLiveKey) {
       lastLiveKey = key;
@@ -631,6 +640,9 @@
           : `No more subs · full time in <b>${L.fmtCountdown(L.MATCH_MS - st.t)}</b>`);
     } else if (st.mode === "warn") {
       setText(el.warnCount, L.fmtCountdown(st.next.at - st.t));
+    } else if (st.mode === "sub") {
+      const left = (match.speed || 1) > 1 ? st.subLeft / match.speed : st.subLeft;
+      setHtml(el.done, `<span>DONE<span class="done-count">· ${L.fmtCountdown(left)}</span></span>`);
     }
 
     alerts(st);
@@ -706,6 +718,7 @@
     if (now - lastDoneAt < 900) return; // a double tap must not also confirm a following sub
     lastDoneAt = now;
     match.confirmed = st.idx + 1;
+    match.confirmedAt = st.t;
     saveMatch();
     drawLive();
   }
