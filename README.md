@@ -10,6 +10,7 @@ Substitution manager and match timer for five-a-side (38:00 matches, fixed keepe
 | `index.html`, `styles.css`, `app.js` | The app (screens, storage, live match, wake lock, sound) |
 | `logic.js` | Pure rules: stoppages, stints, match clock, template validation |
 | `templates.js` | **Rotation templates as plain data. Edit these.** |
+| `squad.js` | **Default squad (one name per line). Edit this.** |
 | `sw.js`, `manifest.json`, `icons/` | Offline support and Home Screen install |
 | `serve.py` | Optional local server that prints the address to open on your iPhone |
 | `validate.js` | Checks the templates from the command line |
@@ -23,8 +24,11 @@ python3 serve.py
 It prints two addresses, for example `http://192.168.1.195:8000` and
 `http://Your-Mac.local:8000`. Open either on your Mac, or on your iPhone on the same Wi-Fi.
 
-Test mode: add `?speed=20` to the address to run the clock 20× faster
-(a full match in under 2 minutes). A red `TEST x20` label shows while it's on.
+Test mode: tap **Test run (x20)** under START MATCH on the rotation screen to run the
+same match 20× faster (a full match in under 2 minutes). A red `TEST x20` label shows
+on the live screen, and ending or finishing a test run takes you back to the same
+rotation so you can START MATCH for real. Adding `?speed=N` to the address still works
+too: START MATCH then runs N× faster.
 
 ## Check the templates
 
@@ -72,6 +76,13 @@ After you edit any file, open the installed app once while the server is reachab
 then close it and open it again. The service worker downloads every file in the
 background and swaps them in together on the next launch. If you add a new file,
 add it to `ASSETS` in `sw.js`.
+
+## Default squad
+
+`squad.js` holds the default squad. A device with no saved squad loads it automatically on
+first open; a device that already has its own squad keeps it. To pick up edits to
+`squad.js` on a device, tap **Reset to default squad** at the bottom of the Squad screen
+(it asks first). Players who are in both lists keep their match-setup selections.
 
 ## Editing rotations
 

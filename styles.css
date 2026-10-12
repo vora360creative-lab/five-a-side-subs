@@ -132,6 +132,12 @@ textarea.field { resize: vertical; line-height: 1.4; }
 .btn-go { background: var(--green); color: #fff; }
 .btn-xl { min-height: 72px; border-radius: 18px; font-size: 22px; font-weight: 800; letter-spacing: .02em; }
 .btn.is-disabled { background: var(--surface-2); color: var(--faint); }
+.btn-test {
+  margin-top: 12px;
+  background: transparent; border: 1.5px solid var(--line); color: var(--muted);
+  font-size: 16px; font-weight: 600;
+}
+.btn-quiet { background: transparent; color: var(--muted); font-size: 16px; font-weight: 600; }
 
 .icon-btn {
   width: 56px; height: 56px; flex: none;
@@ -164,6 +170,12 @@ textarea.field { resize: vertical; line-height: 1.4; }
 .row .icon-btn { color: var(--muted); }
 .row .btn-danger { min-width: 104px; }
 .row.is-editing .field { flex: 1; min-width: 0; }
+
+.reset-box { margin-top: 20px; }
+.confirm { padding: 16px; border: 1.5px solid var(--line); border-radius: 16px; background: var(--surface); }
+.confirm-text { margin: 0 0 14px; }
+.confirm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.confirm-row .btn-ghost { background: var(--surface-2); }
 
 /* ---------- Setup ---------- */
 

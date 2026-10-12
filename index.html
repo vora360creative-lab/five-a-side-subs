@@ -46,6 +46,18 @@
     <p id="squad-msg" class="msg" role="status"></p>
     <ul id="squad-list" class="list"></ul>
     <p id="squad-empty" class="empty">No players yet.</p>
+
+    <div id="reset-box" class="reset-box">
+      <button id="reset-ask" class="btn btn-quiet btn-block" data-act="reset-ask">Reset to default squad</button>
+      <div id="reset-confirm" class="confirm" hidden>
+        <p id="reset-text" class="confirm-text"></p>
+        <div class="confirm-row">
+          <button class="btn btn-ghost" data-act="reset-cancel">Cancel</button>
+          <button class="btn btn-danger" data-act="reset-confirm">Reset</button>
+        </div>
+      </div>
+    </div>
+
     <p id="insecure-note" class="footnote" hidden>Offline mode needs HTTPS. See README.md.</p>
   </section>
 
@@ -112,6 +124,7 @@
 
     <div class="action-bar">
       <button class="btn btn-go btn-xl btn-block" data-act="start">START MATCH</button>
+      <button class="btn btn-test btn-block" data-act="test-run">Test run (x20)</button>
     </div>
   </section>
 
@@ -187,6 +200,7 @@
   </section>
 
   <script src="templates.js"></script>
+  <script src="squad.js"></script>
   <script src="logic.js"></script>
   <script src="app.js"></script>
 </body>

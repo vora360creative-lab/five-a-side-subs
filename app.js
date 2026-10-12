@@ -7,6 +7,8 @@
 
   const L = window.Logic;
   const TPL = typeof TEMPLATES === "object" && TEMPLATES ? TEMPLATES : null;
+  const DEFAULTS = typeof DEFAULT_SQUAD !== "undefined" && Array.isArray(DEFAULT_SQUAD) ? DEFAULT_SQUAD : [];
+  const TEST_RUN_SPEED = 20;
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -157,6 +159,7 @@
     $("#squad-count").textContent = squad.length ? String(squad.length) : "";
     $("#squad-empty").hidden = squad.length > 0;
     $("#insecure-note").hidden = window.isSecureContext;
+    $("#reset-box").hidden = !DEFAULTS.length;
     $("#squad-list").innerHTML = sorted(squad).map(squadRow).join("");
     const input = $("#rename-input");
     if (input) {
@@ -266,6 +269,54 @@
     }
     renderSquad();
     say(squadMsg, `Removed ${p.name}.`);
+  }
+
+  /**
+   * The squad from squad.js. Players whose name is already in `existing` keep
+   * their id, so match setup selections for them survive a reset.
+   */
+  function defaultSquad(existing) {
+    const out = [];
+    for (const raw of DEFAULTS) {
+      const name = cleanName(raw);
+      const key = name.toLocaleLowerCase();
+      if (!name || out.some((p) => p.name.toLocaleLowerCase() === key)) continue;
+      const same = (existing || []).find((p) => p.name.toLocaleLowerCase() === key);
+      out.push({ id: same ? same.id : newId(), name });
+    }
+    return out;
+  }
+
+  let resetAskedAt = 0;
+
+  function showResetConfirm(on) {
+    $("#reset-ask").hidden = on;
+    $("#reset-confirm").hidden = !on;
+  }
+
+  function askReset() {
+    if (editingId) commitRename(editingId);
+    resetAskedAt = Date.now();
+    const n = defaultSquad().length;
+    $("#reset-text").textContent = `Replace the squad with the ${n} default players? Anyone you added will be removed.`;
+    showResetConfirm(true);
+  }
+
+  function confirmReset() {
+    if (Date.now() - resetAskedAt < 700) return; // ignore the second half of a double tap
+    editingId = null;
+    armedDeleteId = null;
+    squad = defaultSquad(squad);
+    saveSquad();
+    setupModel(); // drops selections for players who are gone
+    saveSetup();
+    if (review && !reviewValid()) {
+      review = null;
+      saveReview();
+    }
+    showResetConfirm(false);
+    renderSquad();
+    say(squadMsg, `Squad reset to the ${squad.length} default players.`, "ok");
   }
 
   /* ================================================================ */
@@ -464,8 +515,10 @@
     }
   }
 
-  function startMatch() {
+  /** speed 1 = real match. Anything else is a test run (shows "TEST xN"). */
+  function startMatch(speed) {
     if (!reviewValid()) return show("setup");
+    const isTest = speed !== 1;
     unlockAudio(); // must happen inside the START tap for iOS
     const plan = reviewPlan();
     const names = {};
@@ -481,7 +534,7 @@
         names,
       },
       kickoffAt: Date.now(),
-      speed: urlSpeed,
+      speed,
       paused: false,
       pausedAt: null,
       pausedTotal: 0,
@@ -490,8 +543,10 @@
       over: false,
     };
     saveMatch();
-    review = null;
-    saveReview();
+    if (!isTest) {
+      review = null; // a test run keeps the plan so the real match can follow it
+      saveReview();
+    }
     picked = null;
     setWakeNotice(false);
     show("live");
@@ -694,15 +749,19 @@
     endMatch();
   }
 
-  /** Used by both "End match early" (after confirmation) and "Finish". */
+  /**
+   * Used by both "End match early" (after confirmation) and "Finish".
+   * A real match returns to setup; a test run returns to the same rotation.
+   */
   function endMatch() {
+    const wasTest = !!match && (match.speed || 1) !== 1;
     match = null;
     saveMatch();
     stopTicker();
     releaseWakeLock();
     closeSheet();
     setWakeNotice(false);
-    show("setup");
+    show(wasTest && reviewValid() ? "review" : "setup");
   }
 
   /* ---------------- Wake lock ---------------- */
@@ -823,6 +882,7 @@
       case "go":
         if (editingId) commitRename(editingId);
         armedDeleteId = null;
+        showResetConfirm(false);
         say(squadMsg, "");
         return show(btn.dataset.to);
       // Squad
@@ -837,6 +897,9 @@
       case "rename-save": return commitRename(id);
       case "delete-arm": return armDelete(id);
       case "delete": return deletePlayer(id);
+      case "reset-ask": return askReset();
+      case "reset-cancel": return showResetConfirm(false);
+      case "reset-confirm": return confirmReset();
       // Setup
       case "attend": return toggleAttend(id);
       case "keeper": return pickKeeper(id);
@@ -848,7 +911,8 @@
       case "back":
         picked = null;
         return show("setup");
-      case "start": return startMatch();
+      case "start": return startMatch(urlSpeed); // ?speed=N still applies here
+      case "test-run": return startMatch(TEST_RUN_SPEED);
       // Live
       case "pause": return pause();
       case "resume": return resume();
@@ -914,6 +978,13 @@
       f.textContent = "Rotation templates have problems:\n• " + templateErrors.join("\n• ");
     }
     registerServiceWorker();
+
+    // First run on this device: start with the squad from squad.js. A saved squad is never replaced.
+    if (store.get("squad", null) === null && DEFAULTS.length) {
+      squad = defaultSquad();
+      saveSquad();
+    }
+
     updateSoundButton();
     updatePauseButton();
 
