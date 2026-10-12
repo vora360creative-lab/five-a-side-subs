@@ -846,6 +846,10 @@
         master.attack.value = 0.003;
         master.release.value = 0.15;
         master.connect(actx.destination);
+        // Decode the recorded whistle now so it's ready long before the first sub.
+        if (typeof Sounds !== "undefined") {
+          Sounds.prepare(actx).catch((e) => console.warn("Whistle unavailable:", e && e.message));
+        }
       }
       if (actx.state !== "running") actx.resume().catch(() => {});
       const src = actx.createBufferSource();

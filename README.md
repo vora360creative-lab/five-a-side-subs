@@ -10,7 +10,8 @@ Substitution manager and match timer for five-a-side (38:00 matches, fixed keepe
 | `index.html`, `styles.css`, `app.js` | The app (screens, storage, live match, wake lock, sound) |
 | `logic.js` | Pure rules: stoppages, stints, match clock, template validation |
 | `templates.js` | **Rotation templates as plain data. Edit these.** |
-| `sounds.js` | Warning beeps and referee whistles, synthesised with Web Audio |
+| `sounds.js` | Plays the sounds (Web Audio): synthesised warning beeps, recorded whistle |
+| `sounds/whistle.mp3` | Referee whistle recording (trimmed, cached for offline use) |
 | `squad.js` | **Default squad (one name per line). Edit this.** |
 | `sw.js`, `manifest.json`, `icons/` | Offline support and Home Screen install |
 | `serve.py` | Optional local server that prints the address to open on your iPhone |
@@ -82,9 +83,14 @@ add it to `ASSETS` in `sw.js`.
 
 Sound is **always off** when the app opens, after a reload, and at the start of every
 match. Tap the speaker on the live screen to turn it on for that match (it shows as a
-solid button while on). Sounds: two soft beeps at the 30-second warning, a referee
-whistle when a sub is due, and three whistles (short, short, long) at full time. Where
-Safari supports it, sounds play even when the iPhone is on silent.
+solid button while on). Sounds: two soft beeps at the 30-second warning, the recorded
+referee whistle once when a sub is due, and at full time two short whistles then the
+full one. Where Safari supports it, sounds play even when the iPhone is on silent.
+
+The whistle is normalised automatically when the app loads it: its peak is set to the
+warning beep's level (`WARNING_LEVEL` in `sounds.js`) and it is never louder on
+average than the beep. To use a different recording, replace `sounds/whistle.mp3`
+(keep the name); leading silence is skipped automatically.
 
 ## Default squad
 

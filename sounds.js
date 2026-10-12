@@ -1,20 +1,24 @@
 /*
- * Match sounds, synthesised with the Web Audio API (no audio files).
- * Each function schedules its sound on `ctx` into `dest`, starting at time `t`
- * (seconds, AudioContext clock), and returns the sound's length in seconds.
+ * Match sounds (Web Audio API).
+ * - The 30-second warning is two synthesised beeps.
+ * - Sub and full time use a recorded referee whistle: sounds/whistle.mp3.
+ * Each sound function schedules on `ctx` into `dest` at time `t` (seconds,
+ * AudioContext clock) and returns the sound's length in seconds.
  */
 const Sounds = (function () {
   "use strict";
 
-  let noise = null; // shared 1s of white noise for the whistle's breath
+  const WHISTLE_URL = "sounds/whistle.mp3";
 
-  function noiseBuffer(ctx) {
-    if (noise && noise.sampleRate === ctx.sampleRate) return noise;
-    noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const data = noise.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    return noise;
-  }
+  // The warning beep's level. The whistle is normalised against it: its peak is
+  // scaled to this level, and its loudest 100 ms is never louder on average than
+  // the beep (a sine at this peak), so the whistle is never louder than the beep.
+  const WARNING_LEVEL = 0.16;
+  const WARNING_RMS = WARNING_LEVEL / Math.SQRT2;
+
+  const SHORT_WHISTLE = 0.18; // seconds, for the two short full-time blasts
+
+  let whistle = null; // { buffer, start, gain, ctx } once decoded
 
   /** Attack / hold / release envelope on a fresh gain node. */
   function envelope(ctx, t, dur, peak, attack, release) {
@@ -36,94 +40,94 @@ const Sounds = (function () {
     osc.stop(t + dur + 0.02);
   }
 
-  /**
-   * Pea whistle: a ~3 kHz tone whose pitch and loudness flutter ~30 times a
-   * second (the pea rattling), a quick upward chirp at the start, a touch of
-   * second harmonic for bite, and band-passed breath noise.
-   */
-  function whistle(ctx, dest, t, dur) {
-    const end = t + dur + 0.05;
-    const env = envelope(ctx, t, dur, 0.55, 0.012, Math.min(0.08, dur / 3));
-    env.connect(dest);
+  /** Finds where the sound starts and the gain that matches it to the warning beep. */
+  function measure(buffer) {
+    const sr = buffer.sampleRate;
+    const chans = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+    let peak = 0;
+    for (const d of chans) for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    if (!peak) return { start: 0, gain: 0 };
 
-    // Flutter: fast trill plus a slower drift so it never sounds mechanical.
-    const trill = ctx.createOscillator();
-    trill.frequency.setValueAtTime(29, t);
-    trill.frequency.linearRampToValueAtTime(33, end);
-    const drift = ctx.createOscillator();
-    drift.frequency.value = 5.5;
-
-    // Amplitude flutter: gain swings roughly 0.45 .. 1.0
-    const flutter = ctx.createGain();
-    flutter.gain.value = 0.72;
-    const flutterDepth = ctx.createGain();
-    flutterDepth.gain.value = 0.28;
-    trill.connect(flutterDepth).connect(flutter.gain);
-    flutter.connect(env);
-
-    // Fundamental ~2.65-3.35 kHz with fast pitch wobble
-    const tone = ctx.createOscillator();
-    tone.type = "sine";
-    tone.frequency.setValueAtTime(2650, t);
-    tone.frequency.exponentialRampToValueAtTime(3000, t + 0.06);
-    const wobble = ctx.createGain();
-    wobble.gain.value = 300;
-    trill.connect(wobble).connect(tone.frequency);
-    const wander = ctx.createGain();
-    wander.gain.value = 60;
-    drift.connect(wander).connect(tone.frequency);
-    tone.connect(flutter);
-
-    // Second harmonic, following the same wobble
-    const harm = ctx.createOscillator();
-    harm.type = "sine";
-    harm.frequency.setValueAtTime(5300, t);
-    harm.frequency.exponentialRampToValueAtTime(6000, t + 0.06);
-    const harmWobble = ctx.createGain();
-    harmWobble.gain.value = 600;
-    trill.connect(harmWobble).connect(harm.frequency);
-    const harmLevel = ctx.createGain();
-    harmLevel.gain.value = 0.12;
-    harm.connect(harmLevel).connect(flutter);
-
-    // Breath
-    const air = ctx.createBufferSource();
-    air.buffer = noiseBuffer(ctx);
-    air.loop = true;
-    const band = ctx.createBiquadFilter();
-    band.type = "bandpass";
-    band.frequency.value = 3000;
-    band.Q.value = 5;
-    const airLevel = ctx.createGain();
-    airLevel.gain.value = 0.35;
-    air.connect(band).connect(airLevel).connect(flutter);
-
-    for (const src of [trill, drift, tone, harm, air]) {
-      src.start(t);
-      src.stop(end);
+    // Skip any leading near-silence (below -40 dB from the peak).
+    let start = buffer.length;
+    for (const d of chans) {
+      const i = d.findIndex((v) => Math.abs(v) > peak * 0.01);
+      if (i >= 0) start = Math.min(start, i);
     }
-    return dur;
+
+    // Loudest 100 ms (RMS), per channel.
+    const win = Math.round(sr * 0.1);
+    let loudest = 0;
+    for (const d of chans) {
+      for (let i = 0; i + win <= d.length; i += Math.round(sr * 0.01)) {
+        let sum = 0;
+        for (let j = i; j < i + win; j++) sum += d[j] * d[j];
+        loudest = Math.max(loudest, Math.sqrt(sum / win));
+      }
+    }
+    const gain = Math.min(WARNING_LEVEL / peak, loudest ? WARNING_RMS / loudest : Infinity);
+    return { start: start / sr, gain, peak, loudest };
+  }
+
+  /** Loads and decodes the whistle for this AudioContext (once). Works offline via the service worker. */
+  function prepare(ctx) {
+    if (whistle && whistle.ctx === ctx) return Promise.resolve(whistle);
+    return fetch(WHISTLE_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error(`${WHISTLE_URL}: HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then((data) => new Promise((resolve, reject) => ctx.decodeAudioData(data, resolve, reject)))
+      .then((buffer) => {
+        whistle = Object.assign({ buffer, ctx }, measure(buffer));
+        return whistle;
+      });
+  }
+
+  /** Plays the recorded whistle at `t`; `dur` cuts it short with a quick fade. */
+  function playWhistle(ctx, dest, t, dur) {
+    if (!whistle || whistle.ctx !== ctx) return 0;
+    const full = whistle.buffer.duration - whistle.start;
+    const len = dur ? Math.min(dur, full) : full;
+    const src = ctx.createBufferSource();
+    src.buffer = whistle.buffer;
+    const level = ctx.createGain();
+    level.gain.setValueAtTime(whistle.gain, t);
+    if (dur) {
+      level.gain.setValueAtTime(whistle.gain, t + len - 0.03);
+      level.gain.linearRampToValueAtTime(0, t + len);
+    }
+    src.connect(level).connect(dest);
+    src.start(t, whistle.start, len);
+    return len;
   }
 
   return {
+    prepare,
+
+    /** For checking levels: the measured whistle (peak, loudest, gain) once loaded. */
+    whistleInfo: () => whistle && { start: whistle.start, gain: whistle.gain, peak: whistle.peak, loudest: whistle.loudest, duration: whistle.buffer.duration },
+
     /** 30-second warning: two short, soft, high beeps. */
     warning(ctx, dest, t) {
-      beep(ctx, dest, t, 1760, 0.09, 0.16);
-      beep(ctx, dest, t + 0.18, 1760, 0.09, 0.16);
+      beep(ctx, dest, t, 1760, 0.09, WARNING_LEVEL);
+      beep(ctx, dest, t + 0.18, 1760, 0.09, WARNING_LEVEL);
       return 0.27;
     },
 
-    /** Sub due: one referee whistle, about 0.8 s. */
+    /** Sub due: the whistle, once. */
     sub(ctx, dest, t) {
-      return whistle(ctx, dest, t, 0.8);
+      return playWhistle(ctx, dest, t);
     },
 
-    /** Full time: three whistles, short, short, long. */
+    /** Full time: short, short, then the full whistle. */
     fullTime(ctx, dest, t) {
-      whistle(ctx, dest, t, 0.28);
-      whistle(ctx, dest, t + 0.45, 0.28);
-      whistle(ctx, dest, t + 0.9, 1.2);
-      return 2.1;
+      const gap = 0.16;
+      let at = t;
+      at += playWhistle(ctx, dest, at, SHORT_WHISTLE) + gap;
+      at += playWhistle(ctx, dest, at, SHORT_WHISTLE) + gap;
+      at += playWhistle(ctx, dest, at);
+      return at - t;
     },
 
     /** Tiny blip when sound is switched on, to confirm the volume. */

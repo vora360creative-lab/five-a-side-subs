@@ -6,7 +6,7 @@
  *   re-downloaded in the background and swapped in together (only if every file
  *   arrived), so edits show up on the NEXT launch without mixing old and new files.
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `subs5-${VERSION}`;
 const ASSETS = [
   "./",
@@ -15,6 +15,7 @@ const ASSETS = [
   "./app.js",
   "./logic.js",
   "./sounds.js",
+  "./sounds/whistle.mp3",
   "./templates.js",
   "./squad.js",
   "./manifest.json",
