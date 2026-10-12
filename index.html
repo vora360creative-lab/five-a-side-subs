@@ -7,9 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Subs">
+  <meta name="apple-mobile-web-app-title" content="Deadline Day">
   <meta name="format-detection" content="telephone=no">
-  <title>5-a-side Subs</title>
+  <title>FC Deadline Day</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -20,6 +20,7 @@
 
   <!-- SCREEN 1: SQUAD -->
   <section id="screen-squad" class="screen" hidden>
+    <div class="brand">FC Deadline Day</div>
     <header class="topbar">
       <nav class="tabs">
         <button class="tab is-on" data-act="go" data-to="squad">Squad</button>
@@ -63,6 +64,7 @@
 
   <!-- SCREEN 2: MATCH SETUP -->
   <section id="screen-setup" class="screen" hidden>
+    <div class="brand">FC Deadline Day</div>
     <header class="topbar">
       <nav class="tabs">
         <button class="tab" data-act="go" data-to="squad">Squad</button>
@@ -105,6 +107,7 @@
 
   <!-- SCREEN 3: REVIEW ROTATION -->
   <section id="screen-review" class="screen" hidden>
+    <div class="brand">FC Deadline Day</div>
     <header class="topbar">
       <button class="btn-back" data-act="back">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -143,6 +146,7 @@
 
     <div class="live-main">
       <div id="clock" class="clock">00:00</div>
+      <div class="paused-tag">PAUSED</div>
 
       <!-- normal -->
       <div class="mode mode-normal">
@@ -177,12 +181,6 @@
       <p id="wake-notice" class="wake-notice" hidden>Set Auto-Lock to Never during the match</p>
     </div>
 
-    <div id="pause-overlay" class="overlay" hidden>
-      <div class="overlay-title">PAUSED</div>
-      <div id="pause-clock" class="overlay-clock">00:00</div>
-      <button class="btn btn-resume" data-act="resume">Resume</button>
-    </div>
-
     <div id="sheet" class="sheet-wrap" hidden>
       <div class="sheet">
         <div id="sheet-menu">
@@ -202,6 +200,7 @@
   <script src="templates.js"></script>
   <script src="squad.js"></script>
   <script src="logic.js"></script>
+  <script src="sounds.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

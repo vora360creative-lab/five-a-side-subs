@@ -1,7 +1,7 @@
 {
-  "name": "5-a-side Subs",
-  "short_name": "Subs",
-  "description": "Five-a-side substitution manager and match timer.",
+  "name": "FC Deadline Day",
+  "short_name": "Deadline Day",
+  "description": "FC Deadline Day: five-a-side substitution manager and match timer.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

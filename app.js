@@ -59,7 +59,7 @@
   let setup = Object.assign({ attending: [], keeper: null, starters: [] }, store.get("setup", {}));
   let review = store.get("review", null); // { size, keeper, roles: {A: id, ...} } waiting for START
   let match = loadMatch();                // live match, see startMatch()
-  let soundOn = store.get("sound", false) === true;
+  let soundOn = false;                    // always starts muted: every open, reload and new match
 
   function loadMatch() {
     const m = store.get("match", null);
@@ -82,6 +82,9 @@
     soundOn: `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">${SPEAKER}<path d="M15.5 8.6a5 5 0 0 1 0 6.8M18.4 5.9a9 9 0 0 1 0 12.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
     soundOff: `<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">${SPEAKER}<path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
     x: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    // Next-stoppage markers: drawn triangles so they're the same size on every device
+    onNext: '<svg class="mk mk-on" viewBox="0 0 20 18" role="img" aria-label="on next"><path d="M10 2 18.5 16.5h-17z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+    offNext: '<svg class="mk mk-off" viewBox="0 0 20 18" role="img" aria-label="off next"><path d="M1.5 1.5h17L10 16z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
     check: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
 
@@ -106,6 +109,7 @@
     } else {
       stopTicker();
       delete document.documentElement.dataset.live;
+      delete document.documentElement.dataset.paused;
       setThemeColor(THEME.normal);
       store.set("screen", name);
       RENDER[name]();
@@ -519,6 +523,7 @@
   function startMatch(speed) {
     if (!reviewValid()) return show("setup");
     const isTest = speed !== 1;
+    setSound(false); // every match starts muted
     unlockAudio(); // must happen inside the START tap for iOS
     const plan = reviewPlan();
     const names = {};
@@ -568,8 +573,6 @@
     subSwap: $("#sub-swap"),
     pause: $("#btn-pause"),
     sound: $("#btn-sound"),
-    overlay: $("#pause-overlay"),
-    pauseClock: $("#pause-clock"),
     wake: $("#wake-notice"),
   };
   let lastLiveKey = "";
@@ -614,18 +617,21 @@
       buildLive(st);
     }
 
+    // Paused: the clock freezes in place and greys out (CSS keys off data-paused).
+    const paused = !!match.paused && st.mode !== "full";
+    const root = document.documentElement;
+    if (("paused" in root.dataset) !== paused) root.toggleAttribute("data-paused", paused);
+
     setText(el.clock, L.fmtClock(st.t));
     if (st.mode === "normal") {
-      setHtml(el.next, st.next
-        ? `Next sub <b>${L.fmtClock(st.next.at)}</b> · in <b>${L.fmtCountdown(st.next.at - st.t)}</b>`
-        : `No more subs · full time in <b>${L.fmtCountdown(L.MATCH_MS - st.t)}</b>`);
+      setHtml(el.next, paused
+        ? '<b class="paused-word">PAUSED</b>'
+        : st.next
+          ? `Next sub <b>${L.fmtClock(st.next.at)}</b> · in <b>${L.fmtCountdown(st.next.at - st.t)}</b>`
+          : `No more subs · full time in <b>${L.fmtCountdown(L.MATCH_MS - st.t)}</b>`);
     } else if (st.mode === "warn") {
       setText(el.warnCount, L.fmtCountdown(st.next.at - st.t));
     }
-
-    const paused = match.paused && st.mode !== "full";
-    el.overlay.hidden = !paused;
-    if (paused) setText(el.pauseClock, L.fmtClock(st.t));
 
     alerts(st);
 
@@ -648,11 +654,17 @@
 
     if (st.mode === "normal") {
       const on = plan.periods[Math.min(st.idx, plan.periods.length - 1)].on;
-      el.pitch.innerHTML =
-        `<li><span class="gk">GK</span><span class="nm">${nm(plan.keeper)}</span></li>` +
-        on.map((id) => `<li><span></span><span class="nm">${nm(id)}</span></li>`).join("");
       const bench = plan.outfield.filter((id) => !on.includes(id));
-      el.bench.innerHTML = bench.length ? bench.map(nm).join(" · ") : "—";
+      // Markers for the next stoppage only (none after the last one).
+      const mark = (id) => !st.next ? ""
+        : st.next.off.includes(id) ? ICON.offNext
+        : st.next.on.includes(id) ? ICON.onNext
+        : "";
+      const row = (tag, id) => `<li>${tag}<span class="nm"><span class="nm-t">${nm(id)}</span>${mark(id)}</span></li>`;
+      el.pitch.innerHTML = row('<span class="gk">GK</span>', plan.keeper) + on.map((id) => row("<span></span>", id)).join("");
+      el.bench.innerHTML = bench.length
+        ? bench.map((id) => `<span class="b"><span>${nm(id)}</span>${mark(id)}</span>`).join("")
+        : "—";
     } else if (st.mode === "warn" || st.mode === "sub") {
       const col = (ids) => ids.map((id) => `<div>${nm(id)}</div>`).join("");
       const html = `<div class="swap-tag">OFF</div><div class="swap-names">${col(st.next.off)}</div>
@@ -673,17 +685,21 @@
     if (st.mode === "warn" && a.warn < st.idx) {
       a.warn = st.idx;
       saveMatch();
-      beep("warn");
+      play("warning");
     } else if (st.mode === "sub" && a.sub < st.idx) {
       a.sub = st.idx;
       a.warn = Math.max(a.warn, st.idx);
       saveMatch();
-      beep("sub");
+      play("sub");
+    } else if (st.mode === "full" && !a.full) {
+      a.full = true;
+      saveMatch();
+      play("fullTime");
     }
   }
 
   function done() {
-    if (!match || match.paused) return;
+    if (!match) return;
     const now = Date.now();
     const st = L.liveStatus(match, now);
     if (st.mode !== "sub") return;
@@ -717,12 +733,14 @@
     const paused = !!(match && match.paused);
     el.pause.innerHTML = paused ? ICON.play : ICON.pause;
     el.pause.setAttribute("aria-label", paused ? "Resume" : "Pause");
+    el.pause.classList.toggle("is-on", paused);
   }
 
   function updateSoundButton() {
     el.sound.innerHTML = soundOn ? ICON.soundOn : ICON.soundOff;
     el.sound.setAttribute("aria-label", soundOn ? "Sound on" : "Sound off");
     el.sound.setAttribute("aria-pressed", String(soundOn));
+    el.sound.classList.toggle("is-on", soundOn);
   }
 
   function openSheet() {
@@ -755,6 +773,7 @@
    */
   function endMatch() {
     const wasTest = !!match && (match.speed || 1) !== 1;
+    setSound(false);
     match = null;
     saveMatch();
     stopTicker();
@@ -799,23 +818,35 @@
     el.wake.hidden = !on;
   }
 
-  /* ---------------- Sound (Web Audio, no files) ---------------- */
+  /* ---------------- Sound (Web Audio, no files; see sounds.js) ---------------- */
 
+  // Sound is never remembered: it is OFF on every open/reload and at the start of
+  // every match. The live screen's Sound button is the only on/off control.
   let actx = null;
-  const BEEPS = {
-    warn: { count: 1, freq: 880, dur: 0.22 },
-    sub: { count: 3, freq: 1175, dur: 0.18 },
-    check: { count: 1, freq: 660, dur: 0.09 },
-  };
+  let master = null;
+
+  function setAudioSession(type) {
+    // "playback" lets sounds play even when the iPhone is on silent (Safari 16.4+).
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = type;
+    } catch (e) { /* not supported */ }
+  }
 
   /** Creates/resumes the AudioContext. Call from inside a tap so iOS allows it. */
   function unlockAudio() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
-      // "playback" lets beeps sound even with the ring/silent switch on (Safari 16.4+).
-      if (soundOn && navigator.audioSession) navigator.audioSession.type = "playback";
-      if (!actx) actx = new AC();
+      if (!actx) {
+        actx = new AC();
+        master = actx.createDynamicsCompressor(); // loud whistles without clipping
+        master.threshold.value = -12;
+        master.knee.value = 6;
+        master.ratio.value = 8;
+        master.attack.value = 0.003;
+        master.release.value = 0.15;
+        master.connect(actx.destination);
+      }
       if (actx.state !== "running") actx.resume().catch(() => {});
       const src = actx.createBufferSource();
       src.buffer = actx.createBuffer(1, 1, 22050);
@@ -826,47 +857,36 @@
     }
   }
 
-  function beep(kind) {
-    if (!soundOn || !actx) return;
-    if (actx.state === "running") return playBeep(BEEPS[kind]);
-    // Not unlocked (e.g. after a reload): try, but never play a stale beep later.
+  /** Plays a sound from sounds.js (warning, sub, fullTime, check) if sound is on. */
+  function play(name) {
+    if (!soundOn || !actx || typeof Sounds === "undefined") return;
+    const go = () => {
+      try {
+        Sounds[name](actx, master, actx.currentTime + 0.03);
+      } catch (e) {
+        console.warn("Sound failed:", e && e.message);
+      }
+    };
+    if (actx.state === "running") return go();
+    // Not unlocked (e.g. after a reload): try, but never play a stale sound later.
     const asked = Date.now();
     actx.resume().then(() => {
-      if (Date.now() - asked < 400) playBeep(BEEPS[kind]);
+      if (Date.now() - asked < 400) go();
     }).catch(() => {});
   }
 
-  function playBeep(b) {
-    try {
-      const t0 = actx.currentTime + 0.03;
-      for (let i = 0; i < b.count; i++) {
-        const t = t0 + i * (b.dur + 0.12);
-        const osc = actx.createOscillator();
-        const gain = actx.createGain();
-        osc.type = "square";
-        osc.frequency.value = b.freq;
-        gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(0.3, t + 0.012);
-        gain.gain.setValueAtTime(0.3, t + b.dur - 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + b.dur);
-        osc.connect(gain);
-        gain.connect(actx.destination);
-        osc.start(t);
-        osc.stop(t + b.dur + 0.02);
-      }
-    } catch (e) {
-      console.warn("Beep failed:", e && e.message);
-    }
+  function setSound(on) {
+    soundOn = on;
+    setAudioSession(on ? "playback" : "auto");
+    updateSoundButton();
   }
 
   function toggleSound() {
-    soundOn = !soundOn;
-    store.set("sound", soundOn);
+    setSound(!soundOn);
     if (soundOn) {
       unlockAudio();
-      beep("check");
+      play("check");
     }
-    updateSoundButton();
   }
 
   /* ================================================================ */
@@ -914,8 +934,7 @@
       case "start": return startMatch(urlSpeed); // ?speed=N still applies here
       case "test-run": return startMatch(TEST_RUN_SPEED);
       // Live
-      case "pause": return pause();
-      case "resume": return resume();
+      case "pause": return match && match.paused ? resume() : pause();
       case "sound": return toggleSound();
       case "done": return done();
       case "menu": return openSheet();
@@ -978,6 +997,7 @@
       f.textContent = "Rotation templates have problems:\n• " + templateErrors.join("\n• ");
     }
     registerServiceWorker();
+    store.set("sound", null); // older versions remembered sound; it now always starts off
 
     // First run on this device: start with the squad from squad.js. A saved squad is never replaced.
     if (store.get("squad", null) === null && DEFAULTS.length) {
